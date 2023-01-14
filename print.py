@@ -9,15 +9,15 @@ printer_list = ["psts", "pstsb", "pstsc", "psc008", "psc011"]
 
 ### Paramiko / SSH / scp parameters
 host = "stu.comp.nus.edu.sg"
-username = "e0271169"
+username = "e0271169"                                                                                                  # TODO: User input
 
 ### Printing parameters
-filename = "testprint2"
-local_filepath = "/home/theo/schoolwork/hnr2023/testprint2.pdf"         # [local]  file to print
-local_dest = "/home/theo/schoolwork/hnr2023/testfolder"                 # [local]  folder to store chunked files
-remote_dest = "~/testfolderhnr2023"                                     # [remote] folder to store chunked files
-tempname = "hnr2023"
-printqueues = [p+"-sx" for p in printer_list[:3]]                       # printer list (default: psts, pstsb, pstsc)
+filename = "testprint2"                                                                                                # TODO: User input
+local_filepath = f"/home/theo/schoolwork/hnr2023/{filename}.pdf"        # [local]  file to print                       # TODO: User input
+local_dest = "/home/theo/schoolwork/hnr2023/testfolder"                 # [local]  folder to store chunked files       # TODO: check for collision
+remote_dest = "~/testfolderhnr2023"                                     # [remote] folder to store chunked files       # TODO: check for collision
+tempname = "hnr2023"                                                                                                   # TODO: check for collision
+printqueues = [p+"-sx" for p in printer_list[:3]]                       # printer list (default: psts, pstsb, pstsc)   # TODO: User input
 printers = len(printqueues)
 
 
@@ -63,11 +63,11 @@ if e:
 
 
 ### Make printing commands
-# lpr_commands = []
-# for p in printqueues:
-#     cmd = f"lpr -P {p} {remote_dest}/{filename}_{p}.ps"
-#     lpr_commands.append(cmd)
-# print_cmd = " & ".join(lpr_commands)
+lpr_commands = []
+for p in printqueues:
+    cmd = f"lpr -P {p} {remote_dest}/{filename}_{p}.ps"
+    lpr_commands.append(cmd)
+print_cmd = " & ".join(lpr_commands)
 
 ### Make queuecheck commands
 # lpq_commands = []
@@ -76,26 +76,22 @@ if e:
 #     lpq_commands.append(cmd)
 # command = command + "&&" + " && ".join(lpq_commands)
 
-# rm {tempname}.pdf;
-# rm {tempname}.ps;"""
-
-# command = "ls;"
 
 ### Print
-# _stdin, _stdout,_stderr = client.exec_command(print_cmd)
-# print(_stdout.read().decode())
-# e = _stderr.read().decode()
-# if e:
-#     print(e)
+_stdin, _stdout,_stderr = client.exec_command(print_cmd)
+print(_stdout.read().decode())
+e = _stderr.read().decode()
+if e:
+    print(e)
 
 
 ### Cleanup
-# cleanup_cmd = f"rm -r {remote_dest}"
-# _stdin, _stdout,_stderr = client.exec_command(cleanup_cmd)
-# print(_stdout.read().decode())
-# e = _stderr.read().decode()
-# if e:
-#     print(e)
+cleanup_cmd = f"rm -r {remote_dest}"
+_stdin, _stdout,_stderr = client.exec_command(cleanup_cmd)
+print(_stdout.read().decode())
+e = _stderr.read().decode()
+if e:
+    print(e)
 
 
 # Paramiko's nonsense
