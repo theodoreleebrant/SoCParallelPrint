@@ -84,13 +84,12 @@ def get_pdf2ps_command(remote_dest):
     return command
 
 
-def get_print_command(print_queues, remote_dest, files):
+def get_print_command(print_queues, remote_dest, file_name):
     lpr_commands = []
 
-    for file in files:
-        for p in print_queues:
-            command = f"lpr -P {p} {remote_dest}/{file}_{p}.ps"
-            lpr_commands.append(command)
+    for idx, p in enumerate(print_queues):
+        command = f"lpr -P {p} {remote_dest}/{file_name}_{idx}.ps"
+        lpr_commands.append(command)
 
     # launch in background for concurrency
     print_command = " & ".join(lpr_commands)
@@ -168,8 +167,7 @@ def main():
         chunk_pdf(local_files_path_str, local_dest_path_str, file)
         copy_chunks_to_remote(ssh_client, local_dest_path_str, remote_dest_path_str)
         run_command_in_remote(ssh_client, get_pdf2ps_command(remote_dest_path_str))
-        run_command_in_remote(ssh_client,
-                              get_print_command(printing_args.printers, remote_dest_path_str, local_dest_path_str))
+        run_command_in_remote(ssh_client, get_print_command(printing_args.printers, remote_dest_path_str, file))
 
     # run cleanup
     cleanup(ssh_client, local_dest_path_str, remote_dest_path_str)
