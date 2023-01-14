@@ -34,7 +34,7 @@ if pages >= printers:
         p_end = pages if p == printers else p_start + per_printer
         for page in range(p_start, p_end):
             pdf_writer.add_page(pdf_reader.pages[page])
-        output_filename = f'{local_dest}/{fname}_{p+1}.pdf'
+        output_filename = f'{local_dest}/{fname}_{p}.pdf'
         with open(output_filename, 'wb') as out:
             pdf_writer.write(out)
 
@@ -63,11 +63,11 @@ if e:
 
 
 ### Make printing commands
-lpr_commands = []
-for p in printqueues:
-    cmd = f"lpr -P {p} {remote_dest}/{filename}_{p}.ps"
-    lpr_commands.append(cmd)
-print_cmd = " & ".join(lpr_commands)
+# lpr_commands = []
+# for p in printqueues:
+#     cmd = f"lpr -P {p} {remote_dest}/{filename}_{p}.ps"
+#     lpr_commands.append(cmd)
+# print_cmd = " & ".join(lpr_commands)
 
 ### Make queuecheck commands
 # lpq_commands = []
