@@ -3,6 +3,7 @@ import paramiko
 from scp import SCPClient
 import os
 from PyPDF2 import PdfReader, PdfWriter
+import shutil
 
 ### SoC printer options
 printer_list = ["psts", "pstsb", "pstsc", "psc008", "psc011"]
@@ -12,7 +13,7 @@ host = "stu.comp.nus.edu.sg"
 username = "e0271169"                                                                                                  # TODO: User input
 
 ### Printing parameters
-filename = "testprint2"                                                                                                # TODO: User input
+filename = "testprint3"                                                                                                # TODO: User input
 local_filepath = f"/home/theo/schoolwork/hnr2023/{filename}.pdf"        # [local]  file to print                       # TODO: User input
 local_dest = "/home/theo/schoolwork/hnr2023/testfolder"                 # [local]  folder to store chunked files       # TODO: check for collision
 remote_dest = "~/testfolderhnr2023"                                     # [remote] folder to store chunked files       # TODO: check for collision
@@ -22,6 +23,12 @@ printers = len(printqueues)
 
 
 ### File preprocessing (local)
+try:
+    os.makedirs(local_dest)
+except FileExistsError:
+    shutil.rmtree(local_dest)
+    os.makedirs(local_dest)
+
 pdf_reader = PdfReader(local_filepath)
 pages = len(pdf_reader.pages)
 
@@ -63,11 +70,11 @@ if e:
 
 
 ### Make printing commands
-# lpr_commands = []
-# for p in printqueues:
-#     cmd = f"lpr -P {p} {remote_dest}/{filename}_{p}.ps"
-#     lpr_commands.append(cmd)
-# print_cmd = " & ".join(lpr_commands)
+lpr_commands = []
+for p in printqueues:
+    cmd = f"lpr -P {p} {remote_dest}/{filename}_{p}.ps"
+    lpr_commands.append(cmd)
+print_cmd = " & ".join(lpr_commands)
 
 ### Make queuecheck commands
 # lpq_commands = []
@@ -86,6 +93,7 @@ if e:
 
 
 ### Cleanup
+shutil.rmtree(local_dest)
 cleanup_cmd = f"rm -r {remote_dest}"
 _stdin, _stdout,_stderr = client.exec_command(cleanup_cmd)
 print(_stdout.read().decode())
