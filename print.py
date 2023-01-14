@@ -1,6 +1,9 @@
 import argparse
+import concurrent.futures
+import multiprocessing
 import os
 import shutil
+import sys
 
 from getpass import getpass
 from pathlib import Path
@@ -14,6 +17,9 @@ from PyPDF2 import PdfReader, PdfWriter
 AVAILABLE_PRINTERS = ("psts-sx", "pstsb-sx", "pstsc-sx")
 NUM_PRINTERS = len(AVAILABLE_PRINTERS)
 HOST = "stu.comp.nus.edu.sg"
+
+# ### thresholds
+# PARALLEL_THRESHOLD = multiprocessing.cpu_count()
 
 
 ### for obtaining args
@@ -52,7 +58,7 @@ def reset_local_dest(local_dest):
         os.makedirs(local_dest)
 
 
-def get_ssh_client(host, username, passwd):
+def get_ssh_cxn(host, username, passwd):
     client = paramiko.client.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname=host, username=username, password=passwd)
@@ -66,7 +72,7 @@ def copy_chunks_to_remote(client, local_dest, remote_dest):
 
 
 ### for obtaining shell commands
-def get_remote_preprocess_command(remote_dest):
+def get_remote_cleanup_command(remote_dest):
     command = f"""if [ -d {remote_dest} ]; 
     then rm -rf {remote_dest}; 
     fi;
@@ -97,18 +103,14 @@ def get_print_command(print_queues, remote_dest, file_name):
     return print_command
 
 
-def get_cleanup_command(remote_dest):
-    return f"rm -r {remote_dest}"
-
-
 ### for running shell commands on remote client
 def run_command_in_remote(client, command):
     _stdin, _stdout, _stderr = client.exec_command(command)
-    print(_stdout.read().decode())
+    sys.stdout.write(_stdout.read().decode())
 
     e = _stderr.read().decode()
     if e:
-        print(e)
+        sys.stdout.write(e)
 
     _stdin.close()  # bypass issue with paramiko
 
@@ -133,11 +135,32 @@ def chunk_pdf(local_filepath, local_dest, file_name):
                 pdf_writer.write(out)
 
 
+### for overall file processing
+def process_file(ssh_cxn, file, printers, local_files_path_str, local_dest_path_str, remote_dest_path_str):
+    chunk_pdf(local_files_path_str, local_dest_path_str, file)
+    copy_chunks_to_remote(ssh_cxn, local_dest_path_str, remote_dest_path_str)
+    run_command_in_remote(ssh_cxn, get_pdf2ps_command(remote_dest_path_str))
+    # run_command_in_remote(ssh_cxn, get_print_command(printers, remote_dest_path_str, file))
+
+
+# # returns unary function that takes in a file name and
+# # does the processing for use in ProcessPoolExecutor
+# def get_file_consumer(username, passwd, printers, local_files_path_str, local_dest_path_str, remote_dest_path_str):
+#     def file_processor(file):
+#         # create new ssh cxn for uploading
+#         cxn = get_ssh_cxn(HOST, username, passwd)
+#
+#         # process the file
+#         process_file(cxn, file, printers, local_files_path_str, local_dest_path_str, remote_dest_path_str)
+#
+#     return file_processor
+
+
 ### for cleaning up
 def cleanup(client, local_dest, remote_dest):
     shutil.rmtree(local_dest)
 
-    cleanup_command = get_cleanup_command(remote_dest)
+    cleanup_command = get_remote_cleanup_command(remote_dest)
     run_command_in_remote(client, cleanup_command)
 
     client.close()
@@ -156,21 +179,35 @@ def main():
     # local dest preprocessing
     reset_local_dest(local_dest_path_str)
 
-    # setup ssh client
-    ssh_client = get_ssh_client(HOST, username, passwd)
+    # setup ssh cxn
+    ssh_cxn = get_ssh_cxn(HOST, username, passwd)
 
     # remote dest preprocessing
-    run_command_in_remote(ssh_client, get_remote_preprocess_command(remote_dest_path_str))
+    run_command_in_remote(ssh_cxn, get_remote_cleanup_command(remote_dest_path_str))
 
-    # process and print the files
+    # process files
     for file in printing_args.files:
-        chunk_pdf(local_files_path_str, local_dest_path_str, file)
-        copy_chunks_to_remote(ssh_client, local_dest_path_str, remote_dest_path_str)
-        run_command_in_remote(ssh_client, get_pdf2ps_command(remote_dest_path_str))
-        run_command_in_remote(ssh_client, get_print_command(printing_args.printers, remote_dest_path_str, file))
+        process_file(ssh_cxn, file, printing_args.printers, local_files_path_str,
+                     local_dest_path_str, remote_dest_path_str)
+
+    # # parallelize based on threshold
+    # if len(printing_args.files) < PARALLEL_THRESHOLD:
+    #     for file in printing_args.files:
+    #         process_file(ssh_cxn, file, printing_args.printers, local_files_path_str,
+    #                      local_dest_path_str, remote_dest_path_str)
+    # else:
+    #     # get file processor
+    #     file_proc = get_file_consumer(username, passwd, printing_args.printers, local_files_path_str,
+    #                                   local_dest_path_str,
+    #                                   remote_dest_path_str)
+    #
+    #     # run with executor
+    #     with concurrent.futures.ProcessPoolExecutor() as executor:
+    #         for _ in executor.map(file_proc, printing_args.files):
+    #             pass
 
     # run cleanup
-    cleanup(ssh_client, local_dest_path_str, remote_dest_path_str)
+    cleanup(ssh_cxn, local_dest_path_str, remote_dest_path_str)
 
 
 if __name__ == "__main__":
