@@ -2,18 +2,19 @@ import argparse
 import os
 import shutil
 
-import paramiko
-
 from getpass import getpass
+from pathlib import Path
+
+import paramiko
 
 from scp import SCPClient
 from PyPDF2 import PdfReader, PdfWriter
-
 
 ### general constants
 AVAILABLE_PRINTERS = ("psts-sx", "pstsb-sx", "pstsc-sx")
 NUM_PRINTERS = len(AVAILABLE_PRINTERS)
 HOST = "stu.comp.nus.edu.sg"
+
 
 ### for obtaining args
 def get_login_args():
@@ -66,10 +67,9 @@ def copy_chunks_to_remote(client, local_dest, remote_dest):
 
 ### for obtaining shell commands
 def get_remote_preprocess_command(remote_dest):
-    command = f"""if [ -d {remote_dest} ]; then
-    rm -f {remote_dest} ; 
-    fi; 
-    mkdir -p {remote_dest}; 
+    command = f"""if [ -d {remote_dest} ]; 
+    then rm -rf {remote_dest}; 
+    fi;
     """
 
     return command
@@ -144,52 +144,36 @@ def cleanup(client, local_dest, remote_dest):
     client.close()
 
 
-# ### SoC printer options
-# printer_list = ["psts", "pstsb", "pstsc", "psc008", "psc011"]
-#
-# ### Paramiko / SSH / scp parameters
-# host = "stu.comp.nus.edu.sg"
-# username = "e0271169"  # TODO: User input
-#
-# ### Printing parameters
-# filename = "testprint3"  # TODO: User input
-# local_filepath = f"/home/theo/schoolwork/hnr2023/{filename}.pdf"  # [local]  file to print                       # TODO: User input
-# local_dest = "/home/theo/schoolwork/hnr2023/testfolder"  # [local]  folder to store chunked files       # TODO: check for collision
-# remote_dest = "~/testfolderhnr2023"  # [remote] folder to store chunked files       # TODO: check for collision
-# tempname = "hnr2023"  # TODO: check for collision
-# printqueues = [p + "-sx" for p in printer_list[:3]]  # printer list (default: psts, pstsb, pstsc)   # TODO: User input
-# printers = len(printqueues)
-
 def main():
     # get necessary args
     printing_args = get_printing_args()
     username, passwd = get_login_args()
 
+    # get path strs
+    local_files_path_str = Path(printing_args.local_filepath).absolute()
+    local_dest_path_str = os.path.join(local_files_path_str, printing_args.local_dest)
+    remote_dest_path_str = printing_args.remote_dest
+
     # local dest preprocessing
-    local_filepath = printing_args.local_filepath
-    local_dest = os.path.join(local_filepath, printing_args.local_dest)
-    reset_local_dest(local_dest)
+    reset_local_dest(local_dest_path_str)
 
     # setup ssh client
     ssh_client = get_ssh_client(HOST, username, passwd)
 
+    # remote dest preprocessing
+    run_command_in_remote(ssh_client, get_remote_preprocess_command(remote_dest_path_str))
+
     # process and print the files
     for file in printing_args.files:
-        chunk_pdf(local_filepath, local_dest, file)
-        copy_chunks_to_remote(ssh_client, local_dest, printing_args.remote_dest)
-        run_command_in_remote(ssh_client, get_pdf2ps_command(printing_args.remote_dest))
-        run_command_in_remote(ssh_client, get_print_command(printing_args.printers, printing_args.remote_dest, local_dest))
+        chunk_pdf(local_files_path_str, local_dest_path_str, file)
+        copy_chunks_to_remote(ssh_client, local_dest_path_str, remote_dest_path_str)
+        run_command_in_remote(ssh_client, get_pdf2ps_command(remote_dest_path_str))
+        run_command_in_remote(ssh_client,
+                              get_print_command(printing_args.printers, remote_dest_path_str, local_dest_path_str))
 
     # run cleanup
-    cleanup(ssh_client, local_dest, printing_args.remote_dest)
+    cleanup(ssh_client, local_dest_path_str, remote_dest_path_str)
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
