@@ -5,6 +5,15 @@ import os
 from PyPDF2 import PdfReader, PdfWriter
 import shutil
 
+def run_paramiko_command(client, command):
+    _stdin, _stdout,_stderr = client.exec_command(command)
+    print(_stdout.read().decode())
+    e = _stderr.read().decode()
+    if e:
+        print(e)
+    _stdin.close()
+
+
 ### SoC printer options
 printer_list = ["psts", "pstsb", "pstsc", "psc008", "psc011"]
 
@@ -62,11 +71,7 @@ pdf2ps = f"""for f in {remote_dest}/*.pdf; do
 pdf2ps "$f" "${{f%.*}}.ps";
 rm "$f";
 done"""
-_stdin, _stdout,_stderr = client.exec_command(pdf2ps)
-print(_stdout.read().decode())
-e = _stderr.read().decode()
-if e:
-    print(e)
+run_paramiko_command(client, pdf2ps)
 
 
 ### Make printing commands
@@ -85,24 +90,14 @@ print_cmd = " & ".join(lpr_commands)
 
 
 ### Print
-_stdin, _stdout,_stderr = client.exec_command(print_cmd)
-print(_stdout.read().decode())
-e = _stderr.read().decode()
-if e:
-    print(e)
+run_paramiko_command(client, print_cmd)
 
 
 ### Cleanup
 shutil.rmtree(local_dest)
+
 cleanup_cmd = f"rm -r {remote_dest}"
-_stdin, _stdout,_stderr = client.exec_command(cleanup_cmd)
-print(_stdout.read().decode())
-e = _stderr.read().decode()
-if e:
-    print(e)
+run_paramiko_command(client, cleanup_cmd)
 
-
-# Paramiko's nonsense
-_stdin.close()
 client.close()
 
