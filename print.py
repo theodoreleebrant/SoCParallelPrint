@@ -17,7 +17,6 @@ from PyPDF2 import PdfReader, PdfWriter
 
 ### general constants
 AVAILABLE_PRINTERS = ("psts-sx", "pstsb-sx", "pstsc-sx")
-NUM_PRINTERS = len(AVAILABLE_PRINTERS)
 HOST = "stu.comp.nus.edu.sg"
 
 # ### thresholds
@@ -128,12 +127,13 @@ def chunk_pdf(local_filepath, local_dest, file_name):
     pdf_reader = PdfReader(file_path)
     pages = len(pdf_reader.pages)
 
-    if pages >= NUM_PRINTERS:
-        per_printer = pages // NUM_PRINTERS
-        for p in range(NUM_PRINTERS):
+    num_printers = len(get_printing_args().printers)
+    if pages >= num_printers:
+        per_printer = pages // num_printers
+        for p in range(num_printers):
             pdf_writer = PdfWriter()
             p_start = p * per_printer
-            p_end = pages if p == NUM_PRINTERS else p_start + per_printer
+            p_end = pages if p == num_printers else p_start + per_printer
             for page in range(p_start, p_end):
                 pdf_writer.add_page(pdf_reader.pages[page])
             output_filename = f'{local_dest}/{file_name}_{p}.pdf'
