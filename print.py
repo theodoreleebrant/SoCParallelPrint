@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 import concurrent.futures
 import multiprocessing
@@ -68,6 +70,8 @@ def get_ssh_cxn(host, username, passwd):
 
 def copy_chunks_to_remote(client, local_dest, remote_dest):
     scp_client = SCPClient(client.get_transport())
+    cleanup_command = get_remote_cleanup_command(remote_dest)
+    run_command_in_remote(client, cleanup_command)
     scp_client.put(local_dest, remote_dest, recursive=True)
 
 
@@ -97,6 +101,9 @@ def get_print_command(print_queues, remote_dest, file_name):
         command = f"lpr -P {p} {remote_dest}/{file_name}_{idx}.ps"
         lpr_commands.append(command)
 
+    # TODO : if the prints are not chunked (1-2 pages) - this will throw an lpr: cannot access error
+    #        but the printing will still go as usual
+
     # launch in background for concurrency
     print_command = " & ".join(lpr_commands)
 
@@ -121,7 +128,6 @@ def chunk_pdf(local_filepath, local_dest, file_name):
     pdf_reader = PdfReader(file_path)
     pages = len(pdf_reader.pages)
 
-    fname = os.path.splitext(os.path.basename(local_filepath))[0]
     if pages >= NUM_PRINTERS:
         per_printer = pages // NUM_PRINTERS
         for p in range(NUM_PRINTERS):
@@ -130,7 +136,7 @@ def chunk_pdf(local_filepath, local_dest, file_name):
             p_end = pages if p == NUM_PRINTERS else p_start + per_printer
             for page in range(p_start, p_end):
                 pdf_writer.add_page(pdf_reader.pages[page])
-            output_filename = f'{local_dest}/{fname}_{p}.pdf'
+            output_filename = f'{local_dest}/{file_name}_{p}.pdf'
             with open(output_filename, 'wb') as out:
                 pdf_writer.write(out)
 
@@ -205,6 +211,9 @@ def main():
     #     with concurrent.futures.ProcessPoolExecutor() as executor:
     #         for _ in executor.map(file_proc, printing_args.files):
     #             pass
+
+    # TODO : do we need to ensure that the process_file (incl printing) finish before cleanup() starts?
+    # One way to do it would just be to [lpr & lpr & ... & lpr] && cleanup
 
     # run cleanup
     cleanup(ssh_cxn, local_dest_path_str, remote_dest_path_str)
