@@ -139,6 +139,8 @@ def chunk_pdf(local_filepath, local_dest, file_name):
             output_filename = f'{local_dest}/{file_name}_{p}.pdf'
             with open(output_filename, 'wb') as out:
                 pdf_writer.write(out)
+    else:
+        shutil.copy(file_path, os.path.join(local_filepath, f"{file_name}_1.pdf"))
 
 
 ### for overall file processing
