@@ -46,7 +46,7 @@ def get_printing_args():
     # add other arguments
     parser.add_argument("-p", "--printers", choices=AVAILABLE_PRINTERS,
                         default=("psts-sx", "pstsb-sx", "pstsc-sx"),                        # default to level 1, single sided
-                        help="printer selections") 
+                        help="printer selections", nargs="+") 
     parser.add_argument("files", metavar="F", type=str, nargs="+", help="files to print")
 
     return parser.parse_args()
@@ -135,7 +135,7 @@ def chunk_pdf(local_filepath, local_dest, file_name):
         for p in range(num_printers):
             pdf_writer = PdfWriter()
             p_start = p * per_printer
-            p_end = pages if p == num_printers else p_start + per_printer
+            p_end = pages if p == (num_printers - 1) else p_start + per_printer
             for page in range(p_start, p_end):
                 pdf_writer.add_page(pdf_reader.pages[page])
             output_filename = f'{local_dest}/{file_name}_{p}.pdf'
@@ -150,7 +150,7 @@ def process_file(ssh_cxn, file, printers, local_files_path_str, local_dest_path_
     chunk_pdf(local_files_path_str, local_dest_path_str, file)
     copy_chunks_to_remote(ssh_cxn, local_dest_path_str, remote_dest_path_str)
     run_command_in_remote(ssh_cxn, get_pdf2ps_command(remote_dest_path_str))
-    # run_command_in_remote(ssh_cxn, get_print_command(printers, remote_dest_path_str, file))
+    run_command_in_remote(ssh_cxn, get_print_command(printers, remote_dest_path_str, file))
 
 
 # # returns unary function that takes in a file name and
@@ -215,9 +215,6 @@ def main():
     #     with concurrent.futures.ProcessPoolExecutor() as executor:
     #         for _ in executor.map(file_proc, printing_args.files):
     #             pass
-
-    # TODO : do we need to ensure that the process_file (incl printing) finish before cleanup() starts?
-    # One way to do it would just be to [lpr & lpr & ... & lpr] && cleanup
 
     # run cleanup
     cleanup(ssh_cxn, local_dest_path_str, remote_dest_path_str)
