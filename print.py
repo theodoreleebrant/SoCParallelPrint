@@ -16,7 +16,9 @@ from scp import SCPClient
 from PyPDF2 import PdfReader, PdfWriter
 
 ### general constants
-AVAILABLE_PRINTERS = ("psts-sx", "pstsb-sx", "pstsc-sx")
+AVAILABLE_PRINTERS = ("psts-sx", "pstsb-sx", "pstsc-sx", "psc008-sx", "psc011-sx", 
+                      "psts-dx", "pstsb-dx", "pstsc-dx", "psc008-dx", "psc011-dx",
+                      "psts-nb", "pstsb-nb", "pstsc-nb", "psc008-nb", "psc011-nb",)
 HOST = "stu.comp.nus.edu.sg"
 
 # ### thresholds
@@ -43,8 +45,8 @@ def get_printing_args():
 
     # add other arguments
     parser.add_argument("-p", "--printers", choices=AVAILABLE_PRINTERS,
-                        default=AVAILABLE_PRINTERS,
-                        help="printer selections")  # single sided for now
+                        default=("psts-sx", "pstsb-sx", "pstsc-sx"),                        # default to level 1, single sided
+                        help="printer selections") 
     parser.add_argument("files", metavar="F", type=str, nargs="+", help="files to print")
 
     return parser.parse_args()
